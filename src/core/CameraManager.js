@@ -33,12 +33,12 @@ export class CameraManager{
     }
 
     onWindowResize(camera){
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
     }
 
     createControls(){
-        const {enablePan, autoRotate, dampingFactor, enableDamping, target, rotateSpeed} = CAMERA_CONFIG.controls;
+        const {enablePan, autoRotate, dampingFactor, enableDamping, target, rotateSpeed, enableZoom, zoomSpeed} = CAMERA_CONFIG.controls;
         this.controls = new OrbitControls(this.camera, this.rendererDomElement)
 
         this.controls.enableDamping = enableDamping;
@@ -46,17 +46,17 @@ export class CameraManager{
         this.controls.autoRotate = autoRotate;
         this.controls.dampingFactor = dampingFactor;
         this.controls.rotateSpeed = rotateSpeed;
+        this.controls.enableZoom = enableZoom;
+        this.controls.zoomSpeed = zoomSpeed;
 
-        this.controls.target.set(target.x, target.y, target.z);
+        this.controls.target.set(0, 0, 0);
 
         return this.controls;
 
     }
 
     update(){
-        if(this.controls){
-            this.controls.update();
-        }
+        this.controls.update();
     }
     
     

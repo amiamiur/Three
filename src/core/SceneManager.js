@@ -17,7 +17,11 @@ export class SceneManager{
         return this.scene;
     }
 
-    update(){}
+    update(stars){
+        if (stars && stars.material) {
+            stars.material.opacity = 0.7 + Math.sin(5 * 0.3) * 0.1;
+        }
+    }
 
     getScene(){
         return this.scene;

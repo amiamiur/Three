@@ -3,6 +3,11 @@ export const SCENE_CONFIG = {
     fog:{
         enabled: true,
         color: 0x7e19ff,
-        density: 0.09
+        density: 0.03
+    },
+    stars: {
+        counts: 10000,
+        color: 0xffffff,
+        size: 1
     }
 }
