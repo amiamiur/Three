@@ -6,12 +6,9 @@ export class TextureLoader{
         this.textureLoader = new THREE.TextureLoader();
     }
 
-    load(index){
-        let ship_config = '';
-        if (index === 0){
-            ship_config = TEXTURES_CONFIG.url.ship.albedo;
-        }
-        const texture = this.textureLoader.load(ship_config);
+    load(index,key){
+        let ship_map = TEXTURES_CONFIG.url[key][index];
+        const texture = this.textureLoader.load(ship_map);
         return texture;
     }
 }
