@@ -6,9 +6,9 @@ export class TextureLoader{
         this.textureLoader = new THREE.TextureLoader();
     }
 
-    load(index,key){
+    load(index, key){
         let ship_map = TEXTURES_CONFIG.url[key][index];
-        const texture = this.textureLoader.load(ship_map);
+        const texture = this.textureLoader.load(ship_map)
         return texture;
     }
 }

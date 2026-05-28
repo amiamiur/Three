@@ -3,7 +3,8 @@
 // Менеджер управления камерой \\
 //==============================\\
 import * as THREE from 'three';
-import {OrbitControls} from 'three/addons/controls/OrbitControls.js'
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import { FlyControls } from 'three/addons/controls/FlyControls.js';
 import {CAMERA_CONFIG} from '../config/camera.js';
 
 export class CameraManager{
@@ -37,7 +38,7 @@ export class CameraManager{
         this.camera.updateProjectionMatrix();
     }
 
-    createControls(){
+    createOrbitControls(){
         const {enablePan, autoRotate, dampingFactor, enableDamping, target, rotateSpeed, enableZoom, zoomSpeed} = CAMERA_CONFIG.controls;
         this.controls = new OrbitControls(this.camera, this.rendererDomElement)
 
@@ -55,10 +56,26 @@ export class CameraManager{
 
     }
 
-    update(){
-        this.controls.update();
+    createFlyControls(){
+        this.controls = new FlyControls(this.camera, this.rendererDomElement);
+
+        this.controls.movementSpeed = 2;
+        this.controls.rollSpeed = Math.PI / 6;
+        this.controls.autoForward = false;
+        this.controls.dragToLook = false;
+    }
+
+    update(delta,ship){
+        this.controls.update(delta)
+        if(ship){
+            this.camera.lookAt(ship.position.x, ship.position.y, ship.position.z);
+        }
+        ;
     }
     
+    getControls(){
+        return this.controls;
+    }
     
     getCamera(){
         return this.camera
