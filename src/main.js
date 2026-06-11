@@ -11,6 +11,7 @@ import {ShipGenerator} from './helpers/ShipGenerator.js';
 import {ModelLoader} from './core/ModelLoader.js';
 import { PaneConstructor } from './helpers/PaneConstructor.js';
 import { AsteroidManager } from './core/AsteroidManager.js';
+import { NetworkManager } from './core/NetworkManager.js';
 
 class Game{
 
@@ -18,9 +19,10 @@ class Game{
         this.SceneManager = null;
         this.CameraManager = null;
         this.LightManager = null;
-        this.AsteroidManager = null;
         this.ModelLoader = null;
         this.renderer = null;
+        this.networkManager = null;
+        this.remotePlayers = new Map();
         
         this.test = null;
         this.Generator = null;
@@ -63,13 +65,45 @@ class Game{
 
         setTimeout(() => {
             this.ship = this.modelLoader.getModel();
-            this.asteroidManager = new AsteroidManager(scene, this.ship);
-            this.asteroidManager.spawnAsteroids();
         },1000);
 
         this.generator = new Generator(scene);
         this.generator.generateAll();
 
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session');
+        if (sessionId) {
+            const playerName = urlParams.get('name') || `Player_${Math.floor(Math.random() * 1000)}`;
+            this.networkManager = new NetworkManager();
+            
+            this.networkManager.onInit = (players) => {
+                players.forEach(player => this.addRemotePlayer(player));
+            };
+            
+            this.networkManager.onPlayerJoin = (player) => {
+                this.addRemotePlayer(player);
+            };
+            
+            this.networkManager.onPlayerMove = (data) => {
+                const remote = this.remotePlayers.get(data.id);
+                if (remote) {
+                    remote.targetPosition = data.position;
+                    remote.targetRotation = data.rotation;
+                }
+            };
+            
+            this.networkManager.onPlayerLeave = (id) => {
+                const remote = this.remotePlayers.get(id);
+                if (remote && remote.model) {
+                    this.sceneManager.getScene().remove(remote.model);
+                    this.remotePlayers.delete(id);
+                }
+            };
+            
+            const modelIndex = 0;
+            this.networkManager.connect(sessionId, playerName, modelIndex);
+        }
+        
         
 
 
@@ -79,29 +113,60 @@ class Game{
         //this.pane = new PaneConstructor();
         //this.pane.createAll(this.model);
 
-        this.clock = new THREE.Clock();
+        this.clock = new THREE.Timer();
 
         window.addEventListener('resize', () => this.onWindowResize());
 
         window.addEventListener( 'keydown', (event) => {
             if(event.key === 'a'){
-                this.ship.position.z += 0.01;
-                this.ship.rotation.z += 0.001;
+                this.ship.position.z -= 0.01;
+                this.ship.rotation.y += 0.01;
             }
             if(event.key === 'd'){
-                this.ship.position.z -= 0.01;
-                this.ship.rotation.z -= 0.001;
+                this.ship.position.z += 0.01;
+                this.ship.rotation.y -= 0.01;
             }
             if(event.key === 'w'){
-                this.ship.position.y += 0.01;
+                this.ship.position.x += 0.1;
             }
             if(event.key === 's'){
-                this.ship.position.y -= 0.01;
-                this.ship.rotation.y -= 0.001;
+                this.ship.position.x -= 0.1;
             }
         })
 
         this.animate()
+    }
+
+    updateLocalShip(deltaTime) {
+        if (!this.localShip) return;
+        
+        if (this.networkManager) {
+            this.networkManager.sendPosition(
+                this.localShip.position,
+                this.localShip.rotation
+            );
+        }
+    }
+
+    addRemotePlayer(playerData){
+        if (this.remotePlayers.has(playerData.id)) return;
+        
+        const remoteLoader = new ModelLoader(this.sceneManager.getScene());
+        new ShipGenerator(remoteLoader, playerData.modelIndex || 0);
+        
+        const checkInterval = setInterval(() => {
+            if (remoteLoader.model) {
+                clearInterval(checkInterval);
+                remoteLoader.model.position.copy(playerData.position);
+                remoteLoader.model.rotation.copy(playerData.rotation);
+                
+                this.remotePlayers.set(playerData.id, {
+                    model: remoteLoader.model,
+                    targetPosition: playerData.position,
+                    targetRotation: playerData.rotation
+                });
+            }
+        }, 50);
     }
 
     onWindowResize(){
@@ -109,26 +174,31 @@ class Game{
         this.renderer.setSize( window.innerWidth, window.innerHeight);
     }
 
-    animate = () =>{
-        requestAnimationFrame(this.animate);
-
+    animate() {
+        requestAnimationFrame(() => this.animate());
         const delta = this.clock.getDelta();
-
-        this.cameraManager.update(delta);
-        this.sceneManager.update(this.generator.stars);
-
-        const camera = this.cameraManager.camera;
-
-        if(this.ship){
-            this.ship.position.x += 0.01;
-
-            this.asteroidManager.updateAsteroids();
-            //this.ship.position.copy(camera.position);
+        
+        this.updateLocalShip(delta);
+        
+        const interpolationFactor = 0.3;
+        
+        for (const [id, remote] of this.remotePlayers) {
+            if (!remote.model) continue;
+            
+            if (remote.targetPosition) {
+                remote.model.position.lerp(remote.targetPosition, interpolationFactor);
+            }
+            
+            if (remote.targetRotation) {
+                remote.model.rotation.x += (remote.targetRotation.x - remote.model.rotation.x) * interpolationFactor;
+                remote.model.rotation.y += (remote.targetRotation.y - remote.model.rotation.y) * interpolationFactor;
+                remote.model.rotation.z += (remote.targetRotation.z - remote.model.rotation.z) * interpolationFactor;
+            }
         }
-
-        this.renderer.render(
-            this.sceneManager.getScene(),
-            this.cameraManager.getCamera());
+        
+        if (this.cameraManager) {
+            this.renderer.render(this.sceneManager.getScene(), this.cameraManager.getCamera());
+        }
     }
 }
 
